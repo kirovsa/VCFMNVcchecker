@@ -1,6 +1,4 @@
 #Evaluate vcf file for MNVs
-#devtools::install_github(repo="knausb/vcfR")
-#library(vcfR) 
 library(shiny)
 library(stringr)
 library(dplyr)
@@ -9,39 +7,8 @@ library(ggplot2)
 #install.packages("shinyWidgets")
 library(shinyWidgets)
 library(shinyjs)
-#library(pegas)
 options(shiny.maxRequestSize = 100*1024^2)
 
-#TCGA test
-#inputvcf<-"1caf9d54-7377-4440-a020-0f9ef192e04e.vep.vcf"
-
-#TCGA reannotate test; fail- no aa position
-#inputvcf<-"TCGA-AA-3976-01A.GRCh38ERCC-ensembl91.vep_phased.vcf"
-
-#tnsnv test
-#inputvcf<-"EA759841-EA760692_eff_kgsnp_kgindel_mgindel_cosmic_exac_dbsnp138.vcf"
-#strelka test
-#inputvcf<-"EA759841-EA760692.passed.somatic.snvs_eff_kgsnp_kgindel_mgindel_cosmic_exac_dbsnp138.vcf"
-#TCGA test
-
-#tmp_vcf<-readLines(inputvcf)
-#tmp_vcf_data<-read.table(inputvcf, stringsAsFactors = FALSE,quote = "")
-#Do we have strelka?
-#strelka<-grep("strelka",tmp_vcf)
-# filter for the columns names
-#tmp_vcf<-tmp_vcf[-(grep("#CHROM",tmp_vcf)+1):-(length(tmp_vcf))]
-#vcf_names<-unlist(strsplit(tmp_vcf[length(tmp_vcf)],"\t"))
-#names(tmp_vcf_data)<-vcf_names
-#vcf<-tmp_vcf_data[grep("missense|synonymous",tmp_vcf_data[,8]),]
-#vcf.pass<-vcf[vcf[,7]=="PASS",]
-#snames<-vcf_names[10:length(vcf_names)]
-#format<-unlist(strsplit(vcf.pass[1,9],"\\:"))
-#af<-grep("AF",format)
-#ad<-grep("AD",format)
-#ac<-grep("AC",format)
-#fa<-grep("FA",format)
-#dp<-grep("DP",format)
-#isfiltered<-dim(vcf.pass)[1]==dim(vcf)[1]
 
 checkVCF<-function(x,vcf) { #x is a missense row from 
   check<-1
@@ -252,31 +219,6 @@ analyzeVCF<-function (VCFfile,pass) {
   return(vcf)
 }
 
-#pcor<-round(cor(mnvs.df$Freq1,mnvs.df$Freq2),2)
-#scor<-round(cor(mnvs.df$Freq1,mnvs.df$Freq2,method="spearman"),2)
-
-#should be plot per sample
-#mnv.plot<-ggplot(mnvs.df,aes(x=Freq1,y=Freq2,col=Reads))+geom_point() +
-#    annotate(geom="text", x=0.2, y=0.6, label=paste("Spearman",scor),color="red") +
-#    annotate(geom="text", x=0.2, y=0.63, label=paste("Pearson",pcor),color="red")
-
-
-#getTranscriptCodon(testrows[1])
-#perT<-lapply(cold[[1]],function(y) y[c(1,5,6,10,11,24)])
-#perT<-matrix(nrow=0,ncol=64)
-#lapply(cold[[1]],function(y) bindRows(perT,y))
-#transcripts<-str_extract_all(x,"ENST[\\d]+")
-#codons<-str_extract_all(x,regex("L\\|\\w") )
-#return(c(transcripts,codons))
-#  perT.df<-as.data.frame(matrix(unlist(perT),ncol = 6, byrow = TRUE))
-#  colnames(perT.df)<-c("Transcript","TID","PID","AAchange","CodonChange","Protein")
-
-#  perT.df$CodonChange<-as.character(perT.df$CodonChange)
-#  perT.df$CodonChange[perT.df$CodonChange==""]<-"---/---"
-#  codons<-t(as.data.frame(apply(perT.df,1,function(x) strsplit(x[5],"\\/"))))
-#  perT.df$c1<-codons[,1]
-#  perT.df$c2<-codons[,2]
-
 ui <- fluidPage(
   useShinyjs(),
   # App title ----
@@ -355,7 +297,6 @@ vcfFileUpload<-function(session,input){
 }
 
 plotMNVObject <-function(mnv,input) {
-  #  if(mnv==FALSE) return(NULL)
   print(paste("In render",mnv[['dims']]))
   #Samples is index vs name?
   print(paste("Samples",unique(mnv[['mnv']]$Sample)))
@@ -407,7 +348,6 @@ server <- function (input, output, session) {
   
   rmnv<-reactiveValues(mnv=NULL,tracker=1)
   #only on file upload
-  # vals <- reactiveValues()
   
   observeEvent(input$VCFfile, {
     print("Calculating")
