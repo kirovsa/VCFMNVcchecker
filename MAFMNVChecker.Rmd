@@ -10,7 +10,7 @@ params:
     input: file
 ---
 
-```{r setup echo=FALSE}
+```{r setup, echo=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 options(shiny.maxRequestSize=5*1024^3)
 options(rsconnect.max.bundle.size = 5*1024^3)
@@ -20,7 +20,7 @@ library(Biostrings)
 library(kableExtra)
 ```
 
-```{r MNVfunctions echo=FALSE}
+```{r MNVfunctions, echo=FALSE}
 
 
 combineMNVs<-function(rowsMNV) {
@@ -31,7 +31,7 @@ combineMNVs<-function(rowsMNV) {
   }
   rowData<-c(rowsMNV[1,c(1,2,3,4,5,6,40,41,45,50)],rowsMNV[2,c(40,41,45,50)])
   names(rowData)<-c("UID","Gene","Sample","Transcript","Position","Count","MutReads1","RefReads1","Mutation1","Codon1","MutReads2","RefReads2","Mutation2","Codon2")
-  return(rowData)
+  return(unlist(rowData))
 }
 
 getMNVs<-function(uidlist,allcodons.mnv) {
@@ -87,7 +87,6 @@ determineConsequences<-function(conseq) {
 
 mafD<-read.table(params$MAF,sep="\t",head=T,quote = "",colClasses = "character")
 print(dim(mafD))
-print(colnames(mafD))
 mafD<-mafD[mafD$Consequence=="synonymous_variant"|mafD$Consequence=="missense_variant"|mafD$Consequence=="stop_gained"|mafD$Consequence=="stop_lost",]
 mafD<-mafD[grep("^IG[HKL]",mafD$Hugo_Symbol,invert=T),]
 mafD<-mafD[grep("^HLA",mafD$Hugo_Symbol,invert=T),]
@@ -141,7 +140,6 @@ mnv.df$newCodon<-newcodons[1,]
 mnv.df$newAA<-newcodons[2,]
 consequences<-apply(mnv.df,1,determineConsequences)
 mnv.df$MNVConsquence<-consequences
-mnv.df<-apply(mnv.df,2,unlist)
 #Write
 fname<-paste0(params$MAF,".MNV")
 write.table(mnv.df,file=fname,sep="\t",quote=F,row.names = F)
@@ -154,6 +152,7 @@ Plots describing the cohort
 ```{r correlationPlot, echo=FALSE}
 
 #Overall correlation
+
 ggplot(mnv.df,aes(x=Freq1,y=Freq2,col=log2(MinAltCov)))+geom_point()+ 
       ggtitle(paste("Same codon SNVs for all samples")) +
       annotate(geom="text", x=0.2, y=0.6, label=paste("Spearman",scor),color="red") +
