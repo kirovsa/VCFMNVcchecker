@@ -13,3 +13,5 @@ In the annotation the actual protein substitution is expected, such as p.Ala109G
 
 For MAF like files, follow the enclosed file example from TCGA (downloaded from CBio)
 
+To run VCFMNVChecker from command line:
+Rscript -e "rmarkdown::render('$PATHTOSCRIPTR/VCCFMNVChecker.Rmd',params=list(MAF='$PATHTODATA/tcgatest.txt`))"
