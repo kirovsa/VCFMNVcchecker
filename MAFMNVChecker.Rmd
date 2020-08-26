@@ -10,7 +10,7 @@ params:
     input: file
 ---
 
-```{r setup, echo=FALSE}
+```{r setup, echo=FALSE, warning=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 options(shiny.maxRequestSize=5*1024^3)
 options(rsconnect.max.bundle.size = 5*1024^3)
@@ -18,6 +18,7 @@ library(ggplot2)
 library(reshape)
 library(Biostrings)
 library(kableExtra)
+
 ```
 
 ```{r MNVfunctions, echo=FALSE}
@@ -83,18 +84,21 @@ determineConsequences<-function(conseq) {
 
 ```
 
-```{r analyzeMAF}
+```{r analyzeMAF, echo=FALSE}
 
 mafD<-read.table(params$MAF,sep="\t",head=T,quote = "",colClasses = "character")
+print("Size of input set across all samples")
 print(dim(mafD))
 mafD<-mafD[mafD$Consequence=="synonymous_variant"|mafD$Consequence=="missense_variant"|mafD$Consequence=="stop_gained"|mafD$Consequence=="stop_lost",]
 mafD<-mafD[grep("^IG[HKL]",mafD$Hugo_Symbol,invert=T),]
 mafD<-mafD[grep("^HLA",mafD$Hugo_Symbol,invert=T),]
+print("Size of input set across all samples after filtering")
 print(dim(mafD))
   allcodons.stats<-aggregate(HGVSp ~ Hugo_Symbol + Tumor_Sample_Barcode + Transcript_ID + Protein_position,data=mafD,length)
 allcodons.stats<-allcodons.stats[allcodons.stats$HGVSp>1,]
 topsamples<-head(allcodons.stats$Tumor_Sample_Barcode,n=50)
 allcodons.stats<-allcodons.stats[allcodons.stats$Tumor_Sample_Barcode %in% topsamples,]
+print("Size of matrix of potential MNVs")
 print(dim(allcodons.stats))
 
 allcodons.stats$UID<-paste0(allcodons.stats$Hugo_Symbol,allcodons.stats$Tumor_Sample_Barcode, allcodons.stats$Transcript_ID,allcodons.stats$Protein_position,sep=".")
@@ -133,7 +137,7 @@ save(mnv.df,file="mnv.Rdat")
 ```
 
 
-```{r MNV correction}
+```{r MNV correction, echo=FALSE}
 
 newcodons<-apply(mnv.df,1,combineCodons)
 mnv.df$newCodon<-newcodons[1,]
@@ -165,10 +169,33 @@ print("Summary of changes")
 summary(as.factor(mnv.df$MNVConsquence))
 sample.changes<-aggregate(UID ~ Sample+MNVConsquence,data=mnv.df,length)
 colnames(sample.changes)<-c("Sample","MNVConsequence","Count")
-kable(sample.changes) 
+
 
 #Correlations coefficients per sample
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Identify all probable MNVs: either very similar allele frequency or a difference of a single read for low coverage mutations
+
+```{r identifyConfidence,echo=F}
+
+#We are not certain these are not independent
+mnv.df$diff<-abs(mnv.df$Freq1-mnv.df$Freq2)
+mnv.df$diffF<-mnv.df$diff<0.05
+mnv.df$diffR<-abs(mnv.df$MutReads1-mnv.df$MutReads2)
+mnv.df$diffRF<-mnv.df$diffR<2
+mnv.df$diff<-abs(mnv.df$Freq1-mnv.df$Freq2)
+kable(sample.changes) 
+ggplot(mnv.df,aes(x=Freq1,y=Freq2,col=(diffF|diffRF)))+geom_point()+ 
+      ggtitle(paste("Misannotated MNVs at 5% AF difference or read diff<2")) +
+      annotate(geom="text", x=0.2, y=0.6, label=paste("Spearman",scor),color="red") +
+      annotate(geom="text", x=0.2, y=0.63, label=paste("Pearson",pcor),color="red") +
+      scale_x_continuous(expand = c(0, 0)) + scale_y_continuous(expand = c(0, 0))
+
+ggplot(mnv.df,aes(x=diff))+geom_histogram(bins=50) +
+  ggtitle("Histogram of allele frequency difference of in codon SNVs")
+
+write.table(mnv.df,file=paste0(params$MAF,".mnvreport.txt"),sep="\t",row.names=F,quote=F)
+
+
+```
