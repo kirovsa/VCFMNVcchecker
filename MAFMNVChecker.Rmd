@@ -96,8 +96,6 @@ print("Size of input set across all samples after filtering")
 print(dim(mafD))
   allcodons.stats<-aggregate(HGVSp ~ Hugo_Symbol + Tumor_Sample_Barcode + Transcript_ID + Protein_position,data=mafD,length)
 allcodons.stats<-allcodons.stats[allcodons.stats$HGVSp>1,]
-topsamples<-head(allcodons.stats$Tumor_Sample_Barcode,n=50)
-allcodons.stats<-allcodons.stats[allcodons.stats$Tumor_Sample_Barcode %in% topsamples,]
 print("Size of matrix of potential MNVs")
 print(dim(allcodons.stats))
 
