@@ -16,4 +16,4 @@ For MAF like files, follow the enclosed file example from TCGA (downloaded from 
 To run VCFMNVChecker from command line:
 Rscript -e "rmarkdown::render('$PATHTOSCRIPTR/VCCFMNVChecker.Rmd',params=list(MAF='$PATHTODATA/tcgatest.txt`))"
 
-HLA nad immunoglobulin genes are excluded by VCFMNVChecker
+HLA and immunoglobulin genes are excluded by VCFMNVChecker
