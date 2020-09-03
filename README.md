@@ -14,6 +14,16 @@ In the annotation the actual protein substitution is expected, such as p.Ala109G
 For MAF like files, follow the enclosed file example from TCGA (downloaded from CBio)
 
 To run VCFMNVChecker from command line:
-Rscript -e "rmarkdown::render('$PATHTOSCRIPTR/VCCFMNVChecker.Rmd',params=list(MAF='$PATHTODATA/tcgatest.txt`))"
-
+Rscript -e "rmarkdown::render('MAFMNVChecker.Rmd',params=list(MAF='testset.short.txt',author='My Name',title='Example format'))"
 HLA and immunoglobulin genes are excluded by VCFMNVChecker
+
+Please make sure your MAF file conatins all required columns (consult the included example file).
+If columns are missing or mis-named your output file will contain an error message and analysis will fail.
+
+The columns that are mandatory are:
+
+"Symbol","Sample","Transcript","protein_position","HGVSp","t_ref_count","t_alt_count","Codons","Consequence"
+
+The symbol and sample column can be named in a different name as long as they contain the strings "symbol" and "sample". If there are multiple columns containing those strings only the first will be used so make sure it is the relevant one.
+
+
