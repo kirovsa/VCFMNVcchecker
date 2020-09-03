@@ -1,16 +1,21 @@
 ---
-title: "MAFMNVChecker"
-author: "Stefan Kirov"
-date: "August 20, 2020"
 output: html_document
 params: 
   MAF:
     label: "Input file: "
     value: "CBIO.MAF"
     input: file
+  author: "Stefan Kirov"
+  title: "MAFMNV Checker run"
 ---
 
-```{r setup, echo=FALSE, warning=FALSE}
+---
+title: `r params$title`
+author: `r params$author`
+date: `r format(Sys.time(), '%d %B, %Y')`
+---
+
+```{r setup, echo=FALSE, warning=FALSE, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 options(shiny.maxRequestSize=5*1024^3)
 options(rsconnect.max.bundle.size = 5*1024^3)
@@ -21,16 +26,47 @@ library(kableExtra)
 
 ```
 
+```{r ReadAndCheck, echo=FALSE}
+columnscheck<-c("Symbol","Sample","Transcript","protein_position","HGVSp","t_ref_count","t_alt_count","Codons","Consequence") 
+
+mafD<-read.table(params$MAF,sep="\t",head=T,quote = "",colClasses = "character")
+print("Size of input set across all samples")
+print(dim(mafD))
+
+colindex<-lapply(columnscheck,function(x) grep(x,colnames(mafD),ignore.case = T))
+names(colindex)<-columnscheck
+colsfound<-all(unlist(lapply(colindex,function(x) length(x)>0)))
+
+#If we cannot find one of the columns exit
+if (!colsfound) {
+   knitr::knit_exit("Error: One of the required columns is not parseable </body></html>")
+}
+
+#Extract actual names
+symbolcol<-colnames(mafD)[colindex[["Symbol"]][1]]
+samplecol<-colnames(mafD)[colindex[["Sample"]][1]]
+hgvspcol<-colnames(mafD)[colindex[["HGVSp"]][1]]
+transcriptcol<-colnames(mafD)[colindex[["Transcript"]][1]]
+positioncol<-colnames(mafD)[colindex[["protein_position"]][1]]
+trefcntcol<-colnames(mafD)[colindex[["t_ref_count"]][1]]
+taltcntcol<-colnames(mafD)[colindex[["t_alt_count"]][1]]
+consequencecol<-colnames(mafD)[colindex[["Consequence"]][1]]
+codonscol<-colnames(mafD)[colindex[["Codons"]][1]]
+
+```
+
+
 ```{r MNVfunctions, echo=FALSE}
 
 
 combineMNVs<-function(rowsMNV) {
   #Assume 2 only for now
   #If these are the same substitutions they may be merged or otherwise ineligible
-  if (rowsMNV[1,45]==rowsMNV[2,45]) {
+  if (rowsMNV[1,6+colindex[['HGVSp']][1]]==rowsMNV[2,6+colindex[['HGVSp']][1]]) {
     return(NULL)
   }
-  rowData<-c(rowsMNV[1,c(1,2,3,4,5,6,40,41,45,50)],rowsMNV[2,c(40,41,45,50)])
+  rowData<-c(rowsMNV[1,c(1,2,3,4,5,6,6+colindex[['t_ref_count']][1],6+colindex[['t_alt_count']][1],6+colindex[['HGVSp']][1],6+colindex[['Codons']][1])],rowsMNV[2,c(6+colindex[['t_ref_count']][1],6+colindex[['t_alt_count']][1],6+colindex[['HGVSp']][1],6+colindex[['Codons']][1])])
+  #rowData<-c(rowsMNV[1,c(1,2,3,4,5,6,40,41,45,50)],rowsMNV[2,c(40,41,45,50)])
   names(rowData)<-c("UID","Gene","Sample","Transcript","Position","Count","MutReads1","RefReads1","Mutation1","Codon1","MutReads2","RefReads2","Mutation2","Codon2")
   return(unlist(rowData))
 }
@@ -86,21 +122,19 @@ determineConsequences<-function(conseq) {
 
 ```{r analyzeMAF, echo=FALSE}
 
-mafD<-read.table(params$MAF,sep="\t",head=T,quote = "",colClasses = "character")
-print("Size of input set across all samples")
-print(dim(mafD))
-mafD<-mafD[mafD$Consequence=="synonymous_variant"|mafD$Consequence=="missense_variant"|mafD$Consequence=="stop_gained"|mafD$Consequence=="stop_lost",]
-mafD<-mafD[grep("^IG[HKL]",mafD$Hugo_Symbol,invert=T),]
-mafD<-mafD[grep("^HLA",mafD$Hugo_Symbol,invert=T),]
+mafD<-mafD[mafD[,consequencecol]=="synonymous_variant"|mafD[,consequencecol]=="missense_variant"|mafD[,consequencecol]=="stop_gained"|mafD[,consequencecol]=="stop_lost",]
+mafD<-mafD[grep("^IG[HKL]",mafD[,symbolcol],invert=T),]
+mafD<-mafD[grep("^HLA",mafD[,symbolcol],invert=T),]
 print("Size of input set across all samples after filtering")
 print(dim(mafD))
-  allcodons.stats<-aggregate(HGVSp ~ Hugo_Symbol + Tumor_Sample_Barcode + Transcript_ID + Protein_position,data=mafD,length)
-allcodons.stats<-allcodons.stats[allcodons.stats$HGVSp>1,]
+aggregateform<-as.formula(paste(hgvspcol," ~ ",symbolcol,"+",samplecol,"+",transcriptcol,"+",positioncol))
+allcodons.stats<-aggregate(aggregateform,data=mafD,length)
+allcodons.stats<-allcodons.stats[allcodons.stats[,5]>1,] #5th is hgvspcolumn
 print("Size of matrix of potential MNVs")
 print(dim(allcodons.stats))
 
-allcodons.stats$UID<-paste0(allcodons.stats$Hugo_Symbol,allcodons.stats$Tumor_Sample_Barcode, allcodons.stats$Transcript_ID,allcodons.stats$Protein_position,sep=".")
-mafD$UID<-paste0(mafD$Hugo_Symbol,mafD$Tumor_Sample_Barcode, mafD$Transcript_ID,mafD$Protein_position,sep=".")
+allcodons.stats$UID<-paste0(allcodons.stats[,1],allcodons.stats[,2], allcodons.stats[,3],allcodons.stats[,4],sep=".")
+mafD$UID<-paste0(mafD[,symbolcol],mafD[,samplecol], mafD[,transcriptcol],mafD[,positioncol],sep=".")
 
 allcodons.mnv<-merge(allcodons.stats,mafD,by="UID")
 print("Done with putative MNV identification")
@@ -143,13 +177,14 @@ mnv.df$newAA<-newcodons[2,]
 consequences<-apply(mnv.df,1,determineConsequences)
 mnv.df$MNVConsquence<-consequences
 #Write
-fname<-paste0(params$MAF,".MNV")
-write.table(mnv.df,file=fname,sep="\t",quote=F,row.names = F)
+fname<-paste0(params$MAF,".MNV.txt")
+#write.table(mnv.df,file=fname,sep="\t",quote=F,row.names = F)
 
 ```
 
 
-Plots describing the cohort
+
+###Plots describing the cohort
 
 ```{r correlationPlot, echo=FALSE}
 
@@ -173,7 +208,9 @@ colnames(sample.changes)<-c("Sample","MNVConsequence","Count")
 
 ```
 
-Identify all probable MNVs: either very similar allele frequency or a difference of a single read for low coverage mutations
+###Identify all probable MNVs: either very similar allele frequency or a difference of a single read for lower coverage mutations
+
+[Corrected file `r fname`](`r fname`)
 
 ```{r identifyConfidence,echo=F}
 
@@ -193,7 +230,7 @@ ggplot(mnv.df,aes(x=Freq1,y=Freq2,col=(diffF|diffRF)))+geom_point()+
 ggplot(mnv.df,aes(x=diff))+geom_histogram(bins=50) +
   ggtitle("Histogram of allele frequency difference of in codon SNVs")
 
-write.table(mnv.df,file=paste0(params$MAF,".mnvreport.txt"),sep="\t",row.names=F,quote=F)
-
+#write.table(mnv.df,file=paste0(params$MAF,".mnvreport.txt"),sep="\t",row.names=F,quote=F)
+write.table(mnv.df,file=fname,sep="\t",row.names=F,quote=F)
 
 ```
